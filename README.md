@@ -1,6 +1,6 @@
-# Diario de Trabajo - TFG Alberto Martel
+# TFG Alberto Martel
 
-Repositorio para mi TFG: Reingeniería de una aplicación web para análisis de dataciones radiocarbónicas de las Islas Canarias.
+Repositorio para mi TFG: Visualización y gestión móvil de dataciones radiocarbónicas del proyecto 14C Canarias.
 
 ## 22/03/2026
 - Inicio de la fase 1: Migración de R a Python de la carga de datos y las funciones de calibración.
