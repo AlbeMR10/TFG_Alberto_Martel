@@ -9,3 +9,8 @@ Repositorio para mi TFG: Visualización y gestión móvil de dataciones radiocar
 - **calibration.py**: Validado comparando directamente con la función `calibrate()` del paquete `rcarbon`.
 - Curvas obtenidas de: https://www.intcal.org/curves.html
 - Ejecuté el script de calibración con la curva intcal20.14c para probar su funcionamiento.
+
+## 28/03/2026
+- Se migra las funciones de spd (Summed Probability Distribution) para los paneles 3 y 4 de la app
+- **spd.py**: Validado comprobando que carga bien los datos y comprobando graficamente con matplotlib que salen iguales que la app R
+- Se empieza a migrar paleodemografia.py, que seria el ultimo modulo a migrar
