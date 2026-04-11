@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from dataclasses import dataclass
 from calibration import CalibratedDate
 
@@ -139,7 +138,7 @@ if __name__ == "__main__":
     ax.fill_between(bcad, result.probability, color="red", alpha=0.3)
     ax.plot(bcad, result.probability, color="red", linewidth=0.5)
     ax.plot(bcad, smoothed, color="blue", linewidth=2)
-    ax.set_xlabel("Years AD/BC")
+    ax.set_xlabel("cal BC/AD")
     ax.set_ylabel("Summed probability")
     ax.set_title("Acusa")
     ax.axhline(0, color="black", linewidth=0.5)
@@ -158,6 +157,9 @@ if __name__ == "__main__":
     )
 
     groups    = island_df["Vida"].tolist()
+
+    #Normalize =  False para que el área bajo cada curva no sume 1, sino que refleje el número de fechas en cada categoría (Larga vs Corta)
+    # Y para que se vea igual que en R
     resultado = stack_spd(calibrated_isla, groups, time_range=(2500, 250), normalise=False)
 
     # Ordenar: Larga arriba, Corta abajo (igual que R)
@@ -165,6 +167,7 @@ if __name__ == "__main__":
     categorias = [c for c in categorias if c in resultado]
     n_cats     = len(categorias)
 
+    # La app R tienen el mismo eje x e y para ambas categorias.
     fig, axes = plt.subplots(n_cats, 1, figsize=(10, 4 * n_cats), sharex=True, sharey=True)
     if n_cats == 1:
         axes = [axes]
@@ -180,10 +183,9 @@ if __name__ == "__main__":
         ax.set_title(categoria)
         ax.set_ylabel("Summed Probability")
         ax.axhline(0, color="black", linewidth=0.5)
-        ax.invert_xaxis()
 
-    axes[-1].set_xlabel("Years BC/AD")
-    plt.suptitle("Gran Canaria — SPD por Vida", fontsize=13)
+    axes[-1].set_xlabel("cal BC/AD")
+    plt.suptitle("El Hierro — SPD por Vida", fontsize=13)
     plt.tight_layout()
     plt.savefig("spd_panel4_test.png", dpi=150)
     plt.show()

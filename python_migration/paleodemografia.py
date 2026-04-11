@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
+from collections import Counter
 from dataclasses import dataclass, field
 from scipy.cluster.hierarchy import fcluster, linkage
-from spd import spd as calc_spd, running_mean
+from spd import spd as calc_spd, running_mean, SPDResult
 from calibration import calibrate as cal_dates
 
 # ---------------------------------------------------------------------------
@@ -41,7 +42,7 @@ def bin_prep(
 
 @dataclass
 class ModelTestResult:
-    
+
     cal_bp       : np.ndarray
     spd_obs      : np.ndarray
     envelope_hi  : np.ndarray
@@ -49,6 +50,12 @@ class ModelTestResult:
     envelope_mid : np.ndarray
     positive_dev : np.ndarray
     negative_dev : np.ndarray
+    fit_model    : np.ndarray   # modelo teórico ajustado (equivalente a testeo_isla$fit$PrDens en R)
+    roc_obs      : np.ndarray   # tasa de cambio del SPD observado
+    roc_hi       : np.ndarray   # envelope ROC 97.5%
+    roc_lo       : np.ndarray   # envelope ROC 2.5%
+    roc_pos      : np.ndarray   # desviaciones positivas del ROC
+    roc_neg      : np.ndarray   # desviaciones negativas del ROC
     model        : str
     time_range   : tuple[int, int]
 
@@ -112,23 +119,30 @@ def model_test(
     start_bp, end_bp = max(time_range), min(time_range)
 
     # -------------------------------------------------------------------
-    # 1. SPD observado con binning
+    # 1. SPD observado con binning (cada bin contribuye igualmente)
+    # Equivalente a rcarbon::spd() con el parámetro bins=
+    # En rcarbon, cada fecha dentro de un bin se pondera por 1/n_fechas_bin
+    # para que todos los bins contribuyan por igual al SPD.
     # -------------------------------------------------------------------
-    # Seleccionar una fecha representativa por bin (la mediana de BP)
-    bin_dict = {}
-    for i, (b, err) in enumerate(zip(bins, errors)):
-        if b not in bin_dict:
-            bin_dict[b] = {"dates": [], "errors": [], "idx": []}
-        bin_dict[b]["dates"].append(calibrated[i])
-        bin_dict[b]["errors"].append(err)
-        bin_dict[b]["idx"].append(i)
+    bin_counts = Counter(bins)
+    n_bins     = len(bin_counts)
+    errors_arr = np.array(errors)
 
-    # Una fecha calibrada por bin → SPD observado
-    rep_dates = [v["dates"][0] for v in bin_dict.values()]
+    cal_bp_full = calibrated[0].cal_bp
+    prob_sum    = np.zeros(len(cal_bp_full))
+    for cal_date, b in zip(calibrated, bins):
+        prob_sum += cal_date.probability / bin_counts[b]
 
-    spd_obs_result  = calc_spd(rep_dates, time_range=time_range, normalise=True)
-    cal_bp          = spd_obs_result.cal_bp
-    spd_obs_smooth  = running_mean(spd_obs_result, window=run_mean)
+    mask         = (cal_bp_full >= end_bp) & (cal_bp_full <= start_bp)
+    cal_bp       = cal_bp_full[mask]
+    spd_obs_raw  = prob_sum[mask]
+    total        = spd_obs_raw.sum()
+    if total > 0:
+        spd_obs_raw /= total
+
+    tmp_obs        = SPDResult(cal_bp=cal_bp, probability=spd_obs_raw, site="",
+                               time_range=time_range, n_dates=len(calibrated))
+    spd_obs_smooth = running_mean(tmp_obs, window=run_mean)
 
     # -------------------------------------------------------------------
     # 2. Ajustar modelo teórico al SPD observado
@@ -138,25 +152,17 @@ def model_test(
     # -------------------------------------------------------------------
     # 3. Simulaciones Monte Carlo
     # -------------------------------------------------------------------
-    # Número de bins (n simulaciones por iteración = n_bins)
-    n_bins = len(bin_dict)
-    errors_arr = np.array(errors)
-
-    sim_matrix = np.zeros((nsim, len(cal_bp)))
+    sim_matrix     = np.zeros((nsim, len(cal_bp)))
+    roc_sim_matrix = np.zeros((nsim, len(cal_bp)))
 
     print(f"Ejecutando {nsim} simulaciones Monte Carlo...")
 
     for sim_i in range(nsim):
-        # Muestrear n_bins fechas del modelo teórico
-        # Método 'calsample': muestrear en años calendario y luego calibrar
-        # Igual que Timpson et al. 2014 (método por defecto en rcarbon)
-
-        # Muestrear años calendario del modelo teórico (ponderado por fitted_model)
+        # Muestrear n_bins años calendario del modelo teórico
         sampled_cal_bp = np.random.choice(cal_bp, size=n_bins, p=fitted_model)
 
-        # Convertir a BP usando la curva de calibración (back-calibration)
+        # Back-calibration: convertir a BP con la curva
         c14_age   = np.interp(sampled_cal_bp, curve["cal_bp"].values, curve["c14_age"].values)
-        c14_sigma = np.interp(sampled_cal_bp, curve["cal_bp"].values, curve["sigma"].values)
 
         # Añadir error de medida (muestrear errores reales aleatoriamente)
         sampled_errors = np.random.choice(errors_arr, size=n_bins, replace=True)
@@ -171,9 +177,13 @@ def model_test(
         )
 
         # SPD de las fechas simuladas
-        sim_spd = calc_spd(sim_cal, time_range=time_range, normalise=True)
+        sim_spd    = calc_spd(sim_cal, time_range=time_range, normalise=True)
         sim_smooth = running_mean(sim_spd, window=run_mean)
         sim_matrix[sim_i, :] = sim_smooth
+
+        # ROC para esta simulación (se calcula por simulación para el envelope correcto)
+        roc_sim = np.diff(sim_smooth) / np.maximum(sim_smooth[:-1], 1e-10)
+        roc_sim_matrix[sim_i, :] = np.append(roc_sim, 0)
 
         if (sim_i + 1) % 10 == 0:
             print(f"  Simulación {sim_i + 1}/{nsim}")
@@ -184,19 +194,34 @@ def model_test(
     print(f"  fitted_model max en cal_bp: {cal_bp[np.argmax(fitted_model)]:.0f}")
     print(f"  sim_matrix max medio: {sim_matrix.mean(axis=0).max():.6f}")
     print(f"  sim_matrix max en cal_bp: {cal_bp[np.argmax(sim_matrix.mean(axis=0))]:.0f}")
-    
+
     # -------------------------------------------------------------------
-    # 4. Calcular envelope de confianza al 95%
+    # 4. Envelope de confianza al 95% (SPD)
     # -------------------------------------------------------------------
     envelope_hi  = np.percentile(sim_matrix, 97.5, axis=0)
     envelope_lo  = np.percentile(sim_matrix,  2.5, axis=0)
     envelope_mid = np.percentile(sim_matrix, 50.0, axis=0)
 
     # -------------------------------------------------------------------
-    # 5. Detectar desviaciones significativas
+    # 5. Desviaciones significativas (SPD)
     # -------------------------------------------------------------------
     positive_dev = spd_obs_smooth > envelope_hi
     negative_dev = spd_obs_smooth < envelope_lo
+
+    # -------------------------------------------------------------------
+    # 6. Rate of Change (ROC) y su envelope
+    # El envelope se calcula sobre los ROC de cada simulación por separado,
+    # NO sobre el ROC del envelope (que daría resultados incorrectos).
+    # Equivalente al type="roc" del plot.SpdModelTest de rcarbon.
+    # -------------------------------------------------------------------
+    roc_hi_arr = np.percentile(roc_sim_matrix, 97.5, axis=0)
+    roc_lo_arr = np.percentile(roc_sim_matrix,  2.5, axis=0)
+
+    roc_obs = np.diff(spd_obs_smooth) / np.maximum(spd_obs_smooth[:-1], 1e-10)
+    roc_obs = np.append(roc_obs, 0)
+
+    roc_pos = roc_obs > roc_hi_arr
+    roc_neg = roc_obs < roc_lo_arr
 
     return ModelTestResult(
         cal_bp       = cal_bp,
@@ -206,6 +231,12 @@ def model_test(
         envelope_mid = envelope_mid,
         positive_dev = positive_dev,
         negative_dev = negative_dev,
+        fit_model    = fitted_model,
+        roc_obs      = roc_obs,
+        roc_hi       = roc_hi_arr,
+        roc_lo       = roc_lo_arr,
+        roc_pos      = roc_pos,
+        roc_neg      = roc_neg,
         model        = model,
         time_range   = (start_bp, end_bp),
     )
@@ -230,11 +261,13 @@ if __name__ == "__main__":
     curve     = load_curve(curve_path)
 
     # Valores por defecto del Panel 5 en app.R:
-    # Isla: primera de la lista, modelo: exponential
-    # timeRange: 2500-250, binning: 50, runm: 50, nsim: 2
-    island_df = filter_by_island(datasets["analysis"], "Gran Canaria")
+    # Isla: primera de sort(filemaker$Isla) = "El Hierro"
+    # modelo: exponential, timeRange: 2500-250, binning: 50, runm: 50, nsim: 2
+    from python_migration.data_loading import get_island_names
+    first_isla = get_island_names(datasets["all"])[0]   # primer valor alfabético de filemaker
+    island_df  = filter_by_island(datasets["analysis"], first_isla)
 
-    print(f"Fechas en Gran Canaria: {len(island_df)}")
+    print(f"Isla default (app.R): \"{first_isla}\"  →  {len(island_df)} fechas en filemaker3")
 
     # bin_prep
     bins = bin_prep(
@@ -242,7 +275,7 @@ if __name__ == "__main__":
         ages  = island_df["BP"].tolist(),
         h     = 50,
     )
-    print(f"Bins generados: {len(set(bins))}")
+    print(f"Bins generados: {len(set(bins))} de {len(island_df)} fechas")
 
     # calibrate con normalised=FALSE (igual que rcarbon en modelTest)
     calibrated = calibrate(
@@ -258,7 +291,7 @@ if __name__ == "__main__":
         errors     = island_df["SD"].tolist(),
         bins       = bins,
         curve      = curve,
-        nsim       = 2,
+        nsim       = 10,
         time_range = (2500, 250),
         model      = "exponential",
         run_mean   = 50,
@@ -269,16 +302,22 @@ if __name__ == "__main__":
     # --- Gráfica 1: SPD + envelope ---
     fig, ax = plt.subplots(figsize=(10, 5))
 
+    # Orden de capas igual que rcarbon::plot.SpdModelTest:
+    # 1. Gris: intervalo de confianza completo
+    # 2. Rojo: desde envelope_lo hasta spd_obs donde SPD > envelope_hi
+    # 3. Azul: desde spd_obs hasta envelope_hi donde SPD < envelope_lo
+    # 4. Línea negra del SPD encima
     ax.fill_between(result.cal_bp, result.envelope_lo, result.envelope_hi,
                     color="lightgrey", alpha=0.8, label="Confidence")
-    ax.fill_between(result.cal_bp, result.envelope_lo, result.envelope_hi,
+    ax.fill_between(result.cal_bp, result.envelope_lo, result.spd_obs,
                     where=result.positive_dev,
                     color="indianred", alpha=0.5, label="Positive Dev.")
-    ax.fill_between(result.cal_bp, result.envelope_lo, result.envelope_hi,
+    ax.fill_between(result.cal_bp, result.spd_obs, result.envelope_hi,
                     where=result.negative_dev,
                     color="royalblue", alpha=0.5, label="Negative Dev.")
     ax.plot(result.cal_bp, result.spd_obs, color="black", linewidth=1, label="SPD")
-    ax.plot(result.cal_bp, result.envelope_mid, color="red", linewidth=1,
+    # fit_model es el modelo teórico ajustado (equiv. a testeo_isla$fit$PrDens en R)
+    ax.plot(result.cal_bp, result.fit_model, color="red", linewidth=1,
             linestyle="--", label="Model fit")
 
     # Eje X igual que R: cal BP, invertido (pasado → presente)
@@ -292,28 +331,20 @@ if __name__ == "__main__":
     plt.show()
 
     # --- Gráfica 2: ROC + envelope ---
-    # Calcular ROC para las simulaciones también
-    roc_obs = np.diff(result.spd_obs) / np.maximum(result.spd_obs[:-1], 1e-10)
-    roc_obs = np.append(roc_obs, 0)
-
-    # ROC del envelope
-    roc_hi = np.diff(result.envelope_hi) / np.maximum(result.envelope_hi[:-1], 1e-10)
-    roc_hi = np.append(roc_hi, 0)
-    roc_lo = np.diff(result.envelope_lo) / np.maximum(result.envelope_lo[:-1], 1e-10)
-    roc_lo = np.append(roc_lo, 0)
-
-    roc_pos = roc_obs > roc_hi
-    roc_neg = roc_obs < roc_lo
-
+    # El envelope del ROC se calcula sobre los ROC de cada simulación (almacenados
+    # en result.roc_hi / result.roc_lo), no sobre el ROC del envelope del SPD.
     fig, ax = plt.subplots(figsize=(10, 5))
 
-    ax.fill_between(result.cal_bp, roc_lo, roc_hi,
+    # Mismo esquema de capas que el plot SPD pero para el ROC:
+    # Positivo: desde roc_lo hasta roc_obs donde ROC > roc_hi
+    # Negativo: desde roc_obs hasta roc_hi donde ROC < roc_lo
+    ax.fill_between(result.cal_bp, result.roc_lo, result.roc_hi,
                     color="lightgrey", alpha=0.8, label="Confidence")
-    ax.fill_between(result.cal_bp, roc_lo, roc_hi,
-                    where=roc_pos, color="indianred", alpha=0.5, label="Positive Dev.")
-    ax.fill_between(result.cal_bp, roc_lo, roc_hi,
-                    where=roc_neg, color="royalblue", alpha=0.5, label="Negative Dev.")
-    ax.plot(result.cal_bp, roc_obs, color="black", linewidth=1, label="Crecimiento")
+    ax.fill_between(result.cal_bp, result.roc_lo, result.roc_obs,
+                    where=result.roc_pos, color="indianred", alpha=0.5, label="Positive Dev.")
+    ax.fill_between(result.cal_bp, result.roc_obs, result.roc_hi,
+                    where=result.roc_neg, color="royalblue", alpha=0.5, label="Negative Dev.")
+    ax.plot(result.cal_bp, result.roc_obs, color="black", linewidth=1, label="Crecimiento")
     ax.axhline(0, color="grey", linewidth=0.5, linestyle="--")
 
     ax.invert_xaxis()

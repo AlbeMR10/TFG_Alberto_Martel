@@ -167,3 +167,5 @@ config/secrets.json
 database/Canarias.csv
 *.png
 *.jpg
+CLAUDE.md
+.claude/
