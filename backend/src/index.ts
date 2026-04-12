@@ -1,6 +1,9 @@
 import express from 'express'
+import * as path from 'path'
 import { initWebR } from './services/webr'
 import calibrationRouter from './routes/calibration'
+import muestrasRouter    from './routes/muestras'
+import spdRouter         from './routes/spd'
 
 const PORT = process.env.PORT ?? 3001
 
@@ -27,12 +30,14 @@ async function main() {
     next()
   })
 
-  // ── 3. Montar las rutas ───────────────────────────────────────────────────
-  // Todas las rutas de calibración quedan bajo /api/calibrate/...
-  // Cuando añadamos más paneles, añadiremos más routers aquí:
-  //   app.use('/api/spd',   spdRouter)
-  //   app.use('/api/paleo', paleoRouter)
+  // ── 3. Servir archivos estáticos ─────────────────────────────────────────
+  // La página de prueba (test.html) se sirve desde backend/test/
+  app.use(express.static(path.join(__dirname, '../test')))
+
+  // ── 4. Montar las rutas ───────────────────────────────────────────────────
   app.use('/api/calibrate', calibrationRouter)
+  app.use('/api/muestras',  muestrasRouter)
+  app.use('/api/spd',       spdRouter)
 
   // Ruta de comprobación — útil para saber si el servidor está vivo
   app.get('/api/health', (_req, res) => {

@@ -20,6 +20,10 @@ export interface CalibrationParams {
 
 // Lo que devuelve el servicio al frontend (via JSON)
 export interface CalibrationResult {
+  // Fecha de entrada — necesarios para dibujar la gaussiana de la medida
+  bp:         number    // edad 14C BP medida (input)
+  sd:         number    // incertidumbre de la medida (input)
+
   // Distribucion calibrada
   bcad:       number[]  // años cal BC/AD  (eje X del grafico)
   prob:       number[]  // densidad de probabilidad en cada año (eje Y izquierdo)
@@ -28,7 +32,6 @@ export interface CalibrationResult {
   median:     number    // mediana en BC/AD
 
   // Curva de calibracion — para el eje Y derecho (banda naranja)
-  // rcarbon ya la tiene en memoria, la extraemos sin leer ningun archivo
   curveBcad:  number[]  // años BC/AD de la curva (mismo eje X)
   curveC14:   number[]  // edad 14C BP de la curva (eje Y derecho)
   curveError: number[]  // incertidumbre ±1sigma de la curva (para la banda)
@@ -64,9 +67,10 @@ export async function calibrate(params: CalibrationParams): Promise<CalibrationR
     .prob <- as.numeric(.grid$PrDens)
     if (sum(.prob) > 0) .prob <- .prob / sum(.prob)
 
-    # Mediana via rcarbon::summary()
-    .summ <- summary(.cal, calendar = "BCAD")
-    .med  <- as.numeric(.summ$MedianBCAD[1])
+    # Mediana: año donde la probabilidad acumulada supera 0.5
+    # (equivalente a lo que devuelve summary() pero sin depender de su formato)
+    .cum <- cumsum(.prob)
+    .med <- as.numeric(.bcad[which(.cum >= 0.5)[1]])
 
     # Mascaras HPD
     .idx  <- order(.prob, decreasing = TRUE)
@@ -75,12 +79,13 @@ export async function calibrate(params: CalibrationParams): Promise<CalibrationR
     .hpd1 <- as.integer(replace(logical(length(.prob)), .idx[.cum <= 0.683], TRUE))
 
     # ── Curva de calibracion ────────────────────────────────────────────────
-    # rcarbon ya cargo la curva en memoria para hacer el calibrate().
-    # La extraemos directamente del paquete sin leer ningun archivo .14c.
-    .curveFile <- system.file("data", paste0("${calCurve}", ".rda"), package = "rcarbon")
-    .env <- new.env()
-    load(.curveFile, envir = .env)
-    .curveRaw <- get(ls(.env)[1], envir = .env)
+    # Leemos el archivo .14c desde el filesystem virtual de WebR.
+    # initWebR() lo subio a /home/web_user/ al arrancar el servidor.
+    # Formato IntCal: 11 lineas de cabecera, luego calBP,C14BP,sigma,...
+    .curveRaw <- read.table(
+      paste0("/home/web_user/${calCurve}.14c"),
+      skip = 11, header = FALSE, sep = ",", comment.char = "#"
+    )
 
     # Filtrar solo el rango visible (donde hay probabilidad significativa + 40% margen)
     # Asi no enviamos 55000 años de curva al frontend, solo los relevantes
@@ -112,6 +117,7 @@ export async function calibrate(params: CalibrationParams): Promise<CalibrationR
   ])
 
   return {
+    bp, sd,
     bcad, prob, inHpd1, inHpd2, median: medArr[0],
     curveBcad, curveC14, curveError,
   }

@@ -169,3 +169,4 @@ database/Canarias.csv
 *.jpg
 CLAUDE.md
 .claude/
+backend/test/*
