@@ -1,20 +1,14 @@
 import express from 'express'
 import * as path from 'path'
-import { initWebR } from './services/webr'
 import calibrationRouter from './routes/calibration'
 import muestrasRouter    from './routes/muestras'
-import spdRouter         from './routes/spd'
+import spdRouter              from './routes/spd'
+import paleodemographyRouter  from './routes/paleodemography'
 
 const PORT = process.env.PORT ?? 3001
 
 async function main() {
-  // ── 1. Inicializar WebR ───────────────────────────────────────────────────
-  // Arranca el motor R (WASM) e instala rcarbon.
-  // Tarda ~30 segundos la primera vez. Hasta que no termine, el servidor
-  // no empieza a escuchar — así ninguna petición llega antes de que R esté listo.
-  await initWebR()
-
-  // ── 2. Crear la aplicación Express ───────────────────────────────────────
+  // ── 1. Crear la aplicación Express ───────────────────────────────────────
   const app = express()
 
   // Parsear cuerpos JSON en las peticiones POST/PUT
@@ -37,7 +31,8 @@ async function main() {
   // ── 4. Montar las rutas ───────────────────────────────────────────────────
   app.use('/api/calibrate', calibrationRouter)
   app.use('/api/muestras',  muestrasRouter)
-  app.use('/api/spd',       spdRouter)
+  app.use('/api/spd',              spdRouter)
+  app.use('/api/paleodemography',  paleodemographyRouter)
 
   // Ruta de comprobación — útil para saber si el servidor está vivo
   app.get('/api/health', (_req, res) => {

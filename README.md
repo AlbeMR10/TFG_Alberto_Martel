@@ -122,3 +122,236 @@ Endpoints:
 
 - GET /api/spd/yacimientos       -> lista de yacimientos disponibles (con Higiene 1-7)
 - GET /api/spd/islas             -> lista de islas disponibles (con Higiene 1-7)
+
+---------------------------------------------------------------------------
+services/paleodemography.ts
+
+Replica el Panel 5 de la app.R (modelTest). Tiene una función:
+
+- computePaleodemography(): equivale a binPrep() + calibrate() + modelTest() de
+  rcarbon. Recibe los arrays BP, SD y Yacimiento de una isla, agrupa las fechas
+  por yacimiento (binPrep), calibra con normalised=FALSE (requerido por modelTest)
+  y ejecuta modelTest() con Monte Carlo para comparar el SPD observado contra el
+  esperado bajo un modelo demográfico teórico (exponential, uniform o linear).
+
+  Devuelve dos conjuntos de resultados:
+    - SPD observado vs envelope de simulación (nsim percentiles 2.5/97.5) y las
+      máscaras de desviación positiva/negativa (excesos/déficits significativos).
+    - Rate of Change (ROC) del SPD observado vs envelope de ROC simulados.
+
+Parches especiales para WebAssembly:
+  - system() de base R está bloqueado en WASM → se reemplaza con una función vacía
+    via assignInNamespace() para que rcarbon no pete al detectar los cores.
+  - mclapply() usa fork() (no disponible en WASM) → se sustituye por lapply().
+  - detectCores() y ncores=1 se fuerzan para evitar paralelismo.
+  - Si modelTest() falla igualmente, se ejecuta una reimplementación manual que
+    replica el algoritmo de rcarbon (uncalibrate → calibrate → spd, escalado al
+    total del SPD observado).
+
+---------------------------------------------------------------------------
+routes/paleodemography.ts
+
+Expone los endpoints del Panel 5. Carga el CSV al arrancar y filtra las
+filas con Higiene en {1..7} (equivalente a filemaker3 de app.R).
+
+Endpoints:
+- GET /api/paleodemography/isla/:isla  -> Panel 5: modelTest para todas las fechas de una isla
+    ?timeRangeStart=2500 &timeRangeEnd=250 &nsim=100 &runm=50 &binH=50 &model=exponential
+    model puede ser: exponential | uniform | linear
+    Responde: { bcad, spdObs, envelopeHi, envelopeLo, fitModel,
+                positiveDev, negativeDev,
+                rocObs, rocHi, rocLo, rocPosDev, rocNegDev,
+                nDates, nBins, pVal }
+
+- GET /api/paleodemography/islas       -> lista de islas disponibles (con Higiene 1-7)
+
+---------------------------------------------------------------------------
+test/test_calibrate.html
+
+Página de prueba del Panel 2 (Calibración). (Ver public/test.html — misma funcionalidad
+accesible también desde /test/test_calibrate.html.)
+
+---------------------------------------------------------------------------
+test/test_spd_yacimiento.html
+
+Página de prueba del Panel 3 (SPD por yacimiento). Llama a /api/spd/site/:yacimiento
+y pinta el SPD con Chart.js: la curva roja (SPD bruto) y la línea azul (media móvil).
+Incluye un desplegable con todos los yacimientos disponibles.
+
+---------------------------------------------------------------------------
+test/test_spd_isla.html
+
+Página de prueba del Panel 4 (stackSPD por isla). Llama a /api/spd/isla/:isla
+y pinta un SPD apilado por categorías (Vida, Adscripcion, etc.) con Chart.js.
+
+---------------------------------------------------------------------------
+test/test_paleodemography.html
+
+Página de prueba del Panel 5 (Paleodemografía). Llama a /api/paleodemography/isla/:isla
+y pinta dos gráficas con Chart.js:
+  - SPD observado (línea negra) + envelope gris (2.5/97.5) + relleno rojo (exceso)
+    + relleno azul (déficit) + modelo teórico (línea roja discontinua).
+  - Rate of Change observado + envelope simulado con las mismas máscaras.
+Usa un plugin de canvas personalizado (makeEnvelopePlugin) para dibujar el
+relleno del envelope directamente sobre el canvas sin series de relleno extra.
+
+## 14/04/2026 - 16/04/2026
+
+- Los resultados del motor WebR en el Panel 5 (paleodemografía) son difíciles de
+  validar por la lentitud de WebR (~30s de arranque) y los parches necesarios para
+  WASM. Se decide añadir un motor Python alternativo (FastAPI) que replica el mismo
+  contrato JSON que el backend Node.js, permitiendo cambiar de motor sin tocar el
+  frontend.
+
+- Arquitectura dual-engine: Express :3001 sigue siendo el único punto de entrada.
+  Una variable de entorno (CALC_ENGINE) decide si los cálculos los hace WebR o
+  Python. Se puede sobreescribir por petición añadiendo ?engine=python a la URL.
+
+-------------------------------------------------------------------------
+
+backend/.env
+
+Fichero de configuración del servidor Express (no se sube al repositorio).
+Las variables relevantes son:
+
+    CALC_ENGINE=python        # 'python' usa FastAPI, 'webr' usa WebAssembly
+    PYTHON_API_URL=http://localhost:8000   # URL del servidor FastAPI
+
+Con CALC_ENGINE=python el backend Express actúa de proxy: reenvía la petición
+al servidor FastAPI con los mismos parámetros y devuelve su respuesta directamente,
+de modo que el frontend no nota ninguna diferencia.
+
+---------------------------------------------------------------------------
+python_api/main.py
+
+Servidor FastAPI que expone las mismas rutas que el backend WebR. Importa los
+módulos Python de python_migration/ y los envuelve en endpoints HTTP.
+
+Las 4 curvas de calibración se pre-cargan en el startup (lifespan) para no
+repetir la lectura de disco en cada petición.
+
+Endpoints expuestos (mismos parámetros y JSON de respuesta que los de Node.js):
+
+- GET /calibrate
+    ?bp=1200 &sd=30 &calCurve=intcal20 &resOffset=0 &resError=0 &normalised=false
+    Responde: { bcad, probability, hpd1sigma, hpd2sigma, medianBcad }
+
+- GET /spd/site
+    ?bps[]=...  &sds[]=...  &calCurve=intcal20 &timeRangeStart=2500 &timeRangeEnd=250 &runm=50
+    Responde: { bcad, prob, smoothed, nDates }
+
+- GET /spd/isla
+    ?bps[]=...  &sds[]=...  &groups[]=...  &calCurve=intcal20 &timeRangeStart=2500 &timeRangeEnd=250
+    Responde: { "Larga": { bcad, prob }, "Corta": { bcad, prob }, ... }
+
+- GET /paleodemography/isla
+    ?bps[]=...  &sds[]=...  &sites[]=...  &calCurve=intcal20
+    &timeRangeStart=2500 &timeRangeEnd=250 &nsim=100 &runm=50 &binH=50 &model=exponential
+    Responde: { bcad, spdObs, envelopeHi, envelopeLo, fitModel,
+                positiveDev, negativeDev,
+                rocObs, rocHi, rocLo, rocPosDev, rocNegDev,
+                nDates, nBins, pVal }
+
+Todos los vectores se devuelven en orden cronológico (BC→AD, índice 0 = más antiguo)
+para que Chart.js los pinte directamente sin invertir.
+
+---------------------------------------------------------------------------
+python_api/requirements.txt
+
+Dependencias del motor Python:
+    fastapi>=0.110.0
+    uvicorn[standard]>=0.27.0
+    numpy>=2.0.0
+    pandas>=2.0.0
+    scipy>=1.12.0
+
+---------------------------------------------------------------------------
+python_migration/paleodemografia.py (Panel 5)
+
+Reimplementación en Python del módulo de paleodemografía de rcarbon:
+
+- bin_prep(): equivale a rcarbon::binPrep(). Agrupa las fechas del mismo yacimiento
+  que caen dentro de un radio h (en años BP) usando clustering jerárquico de scipy
+  (linkage de Ward). Devuelve un array de etiquetas de bin, igual que R.
+
+- model_test(): equivale a rcarbon::modelTest(). Recibe el objeto CalDates calibrado,
+  los errores originales, los bins y los parámetros del test. Internamente:
+    1. Calcula el SPD observado suavizado con media móvil (runm).
+    2. Ajusta el modelo teórico (exponential/uniform/linear) al SPD observado,
+       evaluándolo solo donde hay datos reales (spd_obs > 0) para evitar
+       extrapolación fuera del rango arqueológico.
+    3. Ejecuta nsim simulaciones Monte Carlo: para cada bin muestrea un cal BP
+       del modelo ajustado, lo convierte a C14 age interpolando la curva
+       (equivale a uncalibrate()), calibra con error = ccError + SD_medición y
+       calcula el SPD simulado escalado al total del observado.
+    4. Calcula los percentiles 2.5/97.5 del envelope y las máscaras de desviación.
+    5. Calcula el Rate of Change y su envelope simulado.
+    6. Devuelve un dataclass ModelTestResult con todos los vectores.
+
+Nota de validación: los resultados Python son equivalentes a los de rcarbon en
+forma e interpretación. Pequeñas diferencias (~1-2 años) en los límites de los
+intervalos son inevitables por diferencias de interpolación interna.
+
+## 17/04/2026 - 29/04/2026 — Migración a Rscript nativo + limpieza del proyecto
+
+### Decisión: abandonar Python y WebR, adoptar Rscript nativo
+
+- WebR tiene un problema fundamental: `system()` está bloqueado en WebAssembly (Emscripten),
+  lo que impide que `modelTest()` de rcarbon detecte los cores correctamente. Se probaron varios
+  parches (`assignInNamespace`, `Sys.setenv`, `mclapply → lapply`) sin éxito.
+- Python daba resultados que no cuadraban lo suficiente con la app R original.
+- Solución final: ejecutar **Rscript nativo** como subproceso de Node.js usando `child_process.execFile`.
+  Sin restricciones de WASM, sin reescribir algoritmos, resultados idénticos a rcarbon.
+
+### Patrón adaptador: r-engine.ts
+
+Se crea `backend/src/services/r-engine.ts` como capa de abstracción entre los servicios y R:
+- Escribe el código R en un fichero temporal, lo ejecuta con Rscript y parsea el JSON de salida.
+- El código R termina siempre con un `list(...)` que `jsonlite::toJSON()` serializa a JSON.
+- `sink("/dev/null")` suprime las barras de progreso de rcarbon para que no contaminen el JSON.
+- Variable de entorno `R_ENGINE=rscript` (por defecto) o `R_ENGINE=plumber` (futuro).
+- Los servicios (`calibration.ts`, `spd.ts`) no saben qué motor usan: solo llaman a `runRCode()`.
+
+### Migración de calibration.ts a Rscript
+
+- `calibrate()` ahora usa `runRCode()` en lugar de `runR()` de WebR.
+- La curva de display se lee desde `system.file("extdata", "intcal20.14c", package="rcarbon")`,
+  la misma copia interna que usa rcarbon para el cálculo, garantizando coherencia visual.
+- Nota técnica: las curvas de rcarbon NO están en `data/` (los datasets R normales) sino en
+  `extdata/` como ficheros `.14c`. `data()` y `getFromNamespace()` fallaban; la solución fue
+  usar `system.file("extdata", ...)` directamente.
+
+### Migración de spd.ts a Rscript
+
+- `computeSPD()` y `computeStackSPD()` reescritos con `runRCode()`.
+- Mejora importante: el stack SPD antes hacía N llamadas WebR separadas (una por grupo),
+  manteniendo estado en el entorno global. Ahora procesa todos los grupos en un único proceso
+  R con un bucle `for` y devuelve la lista anidada completa de una vez.
+
+### Paleodemography: eliminación del fallback WebR
+
+- `paleodemography.ts` ya usaba Rscript para `modelTest()` (generaba los PNGs directamente
+  con `plot.SpdModelTest()`). Se elimina el bloque WebR que nunca llegó a ejecutarse.
+- El flujo final: Rscript genera los dos PNG (SPD y Rate of Change), se leen como base64,
+  y el frontend los muestra directamente con `<img>`. No se mandan vectores de datos al frontend.
+
+### Eliminación de WebR del arranque
+
+- `initWebR()` eliminado de `index.ts`: el servidor arranca instantáneamente sin esperar
+  ~30s a que WebR descargue R y compile rcarbon vía WASM.
+- `webr.ts` eliminado del proyecto por completo.
+
+### Limpieza general del proyecto
+
+Ficheros y carpetas eliminados por no hacer ya ninguna falta:
+- `python_migration/` — módulos Python (calibration.py, spd.py, paleodemografia.py, data_loading.py)
+- `python_api/` — servidor FastAPI
+- `venv/` — entorno virtual Python
+- `database/curves/` — copias locales de las curvas IntCal (rcarbon las tiene en su extdata/)
+- Imágenes y JSON de validación (calibration_panel2_test.png, spd_panel3_test.png, etc.)
+- `backend/.node-xmlhttprequest-sync-619` — artefacto de lock de WebR
+
+### Cierre del backend
+
+Todos los paneles validados en las páginas de prueba HTML. El backend se da por finalizado
+a falta de la integración con MySQL (actualmente los datos se leen del CSV al arrancar).

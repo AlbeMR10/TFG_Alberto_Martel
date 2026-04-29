@@ -3,6 +3,13 @@ import * as fs   from 'fs'
 import * as path from 'path'
 import { calibrate, CalibrationParams } from '../services/calibration'
 
+// Motor de cálculo por defecto: se puede sobreescribir con ?engine=python
+// o cambiar globalmente con la variable de entorno CALC_ENGINE.
+const DEFAULT_ENGINE = (process.env.CALC_ENGINE ?? 'webr') as 'webr' | 'python'
+
+// URL del servidor FastAPI Python (arranca aparte con uvicorn)
+const PYTHON_API_URL = process.env.PYTHON_API_URL ?? 'http://localhost:8000'
+
 // ── Carga del CSV ─────────────────────────────────────────────────────────────
 // TEMPORAL: mientras no hay base de datos MySQL, leemos directamente el CSV.
 // Cuando se monte MySQL, sustituir esta sección por:
@@ -78,14 +85,14 @@ router.get('/:idMuestra', async (req: Request, res: Response) => {
   const { idMuestra } = req.params
 
   // ── 1. Leer parámetros opcionales del query string ────────────────────────
-  const params: CalibrationParams = {
-    bp:         0,   // se sobreescribe con el valor del CSV (o MySQL en el futuro)
-    sd:         0,
-    calCurve:   (req.query.calCurve as string) ?? 'intcal20',
-    resOffset:  Number(req.query.resOffset  ?? 0),
-    resError:   Number(req.query.resError   ?? 0),
-    normalised: req.query.normalised === 'true',
-  }
+  const calCurve   = (req.query.calCurve  as string) ?? 'intcal20'
+  const resOffset  = Number(req.query.resOffset  ?? 0)
+  const resError   = Number(req.query.resError   ?? 0)
+  const normalised = req.query.normalised === 'true'
+
+  // ?engine=python sobreescribe CALC_ENGINE para esta petición concreta.
+  // Útil para comparar los dos motores con la misma muestra sin reiniciar.
+  const engine = (req.query.engine as string) ?? DEFAULT_ENGINE
 
   try {
     // ── 2. Buscar la muestra en el CSV ────────────────────────────────────────
@@ -97,11 +104,35 @@ router.get('/:idMuestra', async (req: Request, res: Response) => {
       return
     }
 
-    // ── 3. Llamar al servicio de calibración ──────────────────────────────────
-    // El servicio solo recibe números, no sabe nada de HTTP ni de CSV.
-    params.bp = muestra.BP
-    params.sd = muestra.SD
+    // ── 3. Llamar al motor de calibración ─────────────────────────────────────
 
+    if (engine === 'python') {
+      // ── Motor Python: proxy al servidor FastAPI ──────────────────────────
+      // FastAPI corre en localhost:8000 (arrancado aparte con uvicorn).
+      // El JSON que devuelve es idéntico al del motor WebR.
+      const qs = new URLSearchParams({
+        bp:         String(muestra.BP),
+        sd:         String(muestra.SD),
+        calCurve,
+        resOffset:  String(resOffset),
+        resError:   String(resError),
+        normalised: String(normalised),
+      })
+      const pyRes = await fetch(`${PYTHON_API_URL}/calibrate?${qs}`)
+      if (!pyRes.ok) {
+        const body = await pyRes.json().catch(() => ({})) as { detail?: string }
+        res.status(pyRes.status).json({ error: body.detail ?? 'Error en el motor Python' })
+        return
+      }
+      res.json(await pyRes.json())
+      return
+    }
+
+    // ── Motor WebR (por defecto) ──────────────────────────────────────────
+    const params: CalibrationParams = {
+      bp: muestra.BP, sd: muestra.SD,
+      calCurve, resOffset, resError, normalised,
+    }
     const result = await calibrate(params)
 
     // ── 4. Devolver el resultado al frontend ──────────────────────────────────

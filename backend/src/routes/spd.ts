@@ -3,6 +3,9 @@ import * as fs   from 'fs'
 import * as path from 'path'
 import { computeSPD, computeStackSPD } from '../services/spd'
 
+const DEFAULT_ENGINE  = (process.env.CALC_ENGINE   ?? 'webr') as 'webr' | 'python'
+const PYTHON_API_URL  = process.env.PYTHON_API_URL  ?? 'http://localhost:8000'
+
 // ── Carga del CSV ─────────────────────────────────────────────────────────────
 // Misma estrategia que routes/calibration.ts: lectura única al arrancar el módulo.
 // Las rutas de SPD usan "filemaker3" de app.R, que corresponde a las filas con
@@ -87,6 +90,7 @@ router.get('/site/:yacimiento', async (req: Request, res: Response) => {
   const trStart  = Number(req.query.timeRangeStart ?? 2500)
   const trEnd    = Number(req.query.timeRangeEnd   ?? 250)
   const runm     = Number(req.query.runm            ?? 50)
+  const engine   = (req.query.engine as string)    ?? DEFAULT_ENGINE
 
   const rows = filemaker3.filter(r => r.Yacimiento === yacimiento)
   if (rows.length === 0) {
@@ -95,6 +99,29 @@ router.get('/site/:yacimiento', async (req: Request, res: Response) => {
   }
 
   try {
+    if (engine === 'python') {
+      // Express ya filtró las filas — pasa los arrays BP/SD directamente a FastAPI.
+      // FastAPI acepta parámetros repetidos: ?bps=850&bps=900&sds=30&sds=25
+      const qs = new URLSearchParams({
+        calCurve,
+        timeRangeStart: String(trStart),
+        timeRangeEnd:   String(trEnd),
+        runm:           String(runm),
+      })
+      rows.forEach(r => qs.append('bps', String(r.BP)))
+      rows.forEach(r => qs.append('sds', String(r.SD)))
+
+      const pyRes = await fetch(`${PYTHON_API_URL}/spd/site?${qs}`)
+      if (!pyRes.ok) {
+        const body = await pyRes.json().catch(() => ({})) as { detail?: string }
+        res.status(pyRes.status).json({ error: body.detail ?? 'Error en el motor Python' })
+        return
+      }
+      res.json(await pyRes.json())
+      return
+    }
+
+    // Motor WebR (por defecto)
     const result = await computeSPD({
       bps:       rows.map(r => r.BP),
       sds:       rows.map(r => r.SD),
@@ -150,8 +177,30 @@ router.get('/isla/:isla', async (req: Request, res: Response) => {
   }
 
   const groups = rows.map(r => r[groupBy as GroupCol])
+  const engine = (req.query.engine as string) ?? DEFAULT_ENGINE
 
   try {
+    if (engine === 'python') {
+      const qs = new URLSearchParams({
+        calCurve,
+        timeRangeStart: String(trStart),
+        timeRangeEnd:   String(trEnd),
+      })
+      rows.forEach(r => qs.append('bps',    String(r.BP)))
+      rows.forEach(r => qs.append('sds',    String(r.SD)))
+      groups.forEach(g => qs.append('groups', g))
+
+      const pyRes = await fetch(`${PYTHON_API_URL}/spd/isla?${qs}`)
+      if (!pyRes.ok) {
+        const body = await pyRes.json().catch(() => ({})) as { detail?: string }
+        res.status(pyRes.status).json({ error: body.detail ?? 'Error en el motor Python' })
+        return
+      }
+      res.json(await pyRes.json())
+      return
+    }
+
+    // Motor WebR (por defecto)
     const result = await computeStackSPD({
       bps:       rows.map(r => r.BP),
       sds:       rows.map(r => r.SD),
