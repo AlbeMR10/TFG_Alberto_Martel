@@ -165,8 +165,11 @@ logs/
 config/secrets.json
 .env.local
 database/Canarias.csv
-*.png
-*.jpg
+# Imágenes (excepto assets del frontend)
+14Canarias_ULL/**/*.png
+14Canarias_ULL/**/*.jpg
+backend/**/*.png
+backend/**/*.jpg
 CLAUDE.md
 .claude/
 backend/test/*
