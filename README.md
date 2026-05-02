@@ -355,3 +355,11 @@ Ficheros y carpetas eliminados por no hacer ya ninguna falta:
 
 Todos los paneles validados en las páginas de prueba HTML. El backend se da por finalizado
 a falta de la integración con MySQL (actualmente los datos se leen del CSV al arrancar).
+
+
+### 01-05-2026
+Se comienza a definir el frontend y se hace la Homepage, (poner los frameworks y tecnologias que se estan utilizando)
+
+## 02-05-2026
+Se sigue con el frontend estableciendo paleta de colores y haciendo la pagina de la guia de uso
+Se crean componentes para las paginas de calculo y resultados
