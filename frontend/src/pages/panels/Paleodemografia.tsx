@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AppShell from '../../components/layout/AppShell'
+import Select from '../../components/ui/Select'
 
 const ISLAS_MOCK = ['El Hierro', 'Fuerteventura', 'Gran Canaria', 'La Gomera', 'La Palma', 'Lanzarote', 'Tenerife']
 const MODELOS    = ['exponential', 'uniform', 'linear']
@@ -20,27 +21,19 @@ export default function Panel5Paleodemography() {
       {/* Filtros */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-end justify-center gap-4">
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Isla</label>
-          <select
-            value={isla}
-            onChange={e => setIsla(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {ISLAS_MOCK.map(i => <option key={i}>{i}</option>)}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Modelo demográfico</label>
-          <select
-            value={modelo}
-            onChange={e => setModelo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {MODELOS.map(m => <option key={m}>{m}</option>)}
-          </select>
-        </div>
+        <Select
+          label="Isla"
+          value={isla}
+          onChange={setIsla}
+          options={ISLAS_MOCK.map(i => ({ value: i, label: i }))}
+        />
+        
+        <Select
+          label="Modelo demográfico"
+          value={modelo}
+          onChange={setModelo}
+          options={MODELOS.map(m => ({ value: m, label: m }))}
+        />
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Inicio cal BP</label>
@@ -94,17 +87,15 @@ export default function Panel5Paleodemography() {
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Ratio de crecimiento</label>
-          <select
-            value={growthRate}
-            onChange={e => setGrowthRate(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            <option value="roc">ROC</option>
-            <option value="spd">SPD</option>
-          </select>
-        </div>
+        <Select
+          label="Ratio de crecimiento"
+          value={growthRate}
+          onChange={setGrowthRate}
+          options={[
+            { value: 'roc', label: 'ROC' },
+            { value: 'spd', label: 'SPD' }
+          ]}
+        />
 
         <button
           onClick={() => console.log('Calcular Paleo', { isla, modelo, trStart, trEnd, nsim, runm, binH, growthRate })}

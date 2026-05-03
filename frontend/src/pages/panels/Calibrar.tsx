@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AppShell from '../../components/layout/AppShell'
+import Select from '../../components/ui/Select'
 
 const MUESTRAS_MOCK = ['Beta-539739', 'Beta-539740', 'Beta-539741', 'GaK-1234']
 const CURVAS = ['intcal20', 'intcal13', 'marine20', 'marine13']
@@ -19,28 +20,20 @@ export default function Panel2Calibration() {
 
 
         {/* Muestra */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Id-Muestra</label>
-          <select
-            value={muestra}
-            onChange={e => setMuestra(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {MUESTRAS_MOCK.map(m => <option key={m}>{m}</option>)}
-          </select>
-        </div>
+        <Select
+          label="Id-Muestra"
+          value={muestra}
+          onChange={setMuestra}
+          options={MUESTRAS_MOCK.map(m => ({ value: m, label: m }))}
+        />
 
         {/* Curva */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Curva de calibración</label>
-          <select
-            value={curva}
-            onChange={e => setCurva(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {CURVAS.map(c => <option key={c}>{c}</option>)}
-          </select>
-        </div>
+        <Select
+          label="Curva de calibración"
+          value={curva}
+          onChange={setCurva}
+          options={CURVAS.map(c => ({ value: c, label: c }))}
+        />
 
         {/* DeltaR */}
         <div className="flex flex-col gap-1">
@@ -65,17 +58,15 @@ export default function Panel2Calibration() {
         </div>
 
         {/* Normalizar */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Normalizar</label>
-          <select
-            value={String(normalizar)}
-            onChange={e => setNormalizar(e.target.value === 'true')}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            <option value="false">No</option>
-            <option value="true">Sí</option>
-          </select>
-        </div>
+        <Select
+          label="Normalizar"
+          value={String(normalizar)}
+          onChange={v => setNormalizar(v === 'true')}
+          options={[
+            { value: 'false', label: 'No' },
+            { value: 'true', label: 'Sí' },
+          ]}
+        />
 
         {/* Botón calcular */}
         <button

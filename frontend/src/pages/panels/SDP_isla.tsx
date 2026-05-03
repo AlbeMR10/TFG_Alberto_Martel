@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AppShell from '../../components/layout/AppShell'
+import Select from '../../components/ui/Select'
 
 const ISLAS_MOCK  = ['El Hierro', 'Fuerteventura', 'Gran Canaria', 'La Gomera', 'La Palma', 'Lanzarote', 'Tenerife']
 const GRUPOS      = ['Vida', 'Adscripcion', 'Contexto_Est', 'Material']
@@ -15,29 +16,20 @@ export default function Panel4SPDIsland() {
 
       {/* Filtros */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-end justify-center gap-4">
+        <Select
+          label="Isla"
+          value={isla}
+          onChange={setIsla}
+          options={ISLAS_MOCK.map(i => ({ value: i, label: i }))}
+        />
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Isla</label>
-          <select
-            value={isla}
-            onChange={e => setIsla(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {ISLAS_MOCK.map(i => <option key={i}>{i}</option>)}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Agrupar por</label>
-          <select
-            value={grupo}
-            onChange={e => setGrupo(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {GRUPOS.map(g => <option key={g}>{g}</option>)}
-          </select>
-        </div>
-
+        <Select
+          label="Agrupar por"
+          value={grupo}
+          onChange={setGrupo}
+          options={GRUPOS.map(g => ({ value: g, label: g }))}
+        />
+        
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Inicio cal BP</label>
           <input

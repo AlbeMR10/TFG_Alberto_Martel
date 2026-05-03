@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import AppShell from '../../components/layout/AppShell'
+import Select from '../../components/ui/Select'
 
 const YACIMIENTOS_MOCK = ['Acusa', 'Agüimes', 'Arguineguín', 'Gáldar', 'Telde']
 
@@ -15,16 +16,12 @@ export default function Panel3SPDSite() {
       {/* Filtros */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-end justify-center gap-4">
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-500">Yacimiento</label>
-          <select
-            value={yacimiento}
-            onChange={e => setYacimiento(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-dark"
-          >
-            {YACIMIENTOS_MOCK.map(y => <option key={y}>{y}</option>)}
-          </select>
-        </div>
+        <Select
+          label="Yacimiento"
+          value={yacimiento}
+          onChange={setYacimiento}
+          options={YACIMIENTOS_MOCK.map(y => ({ value: y, label: y }))}
+        />
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Inicio cal BP</label>

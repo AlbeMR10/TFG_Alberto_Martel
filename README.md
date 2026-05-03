@@ -356,10 +356,136 @@ Ficheros y carpetas eliminados por no hacer ya ninguna falta:
 Todos los paneles validados en las páginas de prueba HTML. El backend se da por finalizado
 a falta de la integración con MySQL (actualmente los datos se leen del CSV al arrancar).
 
+## 01/05/2026 — Inicio del frontend: stack, estructura y HomePage
 
-### 01-05-2026
-Se comienza a definir el frontend y se hace la Homepage, (poner los frameworks y tecnologias que se estan utilizando)
+### Decisión de stack
 
-## 02-05-2026
-Se sigue con el frontend estableciendo paleta de colores y haciendo la pagina de la guia de uso
-Se crean componentes para las paginas de calculo y resultados
+Se elige el siguiente stack para el frontend:
+
+| Herramienta | Motivo |
+|---|---|
+| **Vite + React + TypeScript** | Estándar de la industria, arranque instantáneo, tipado completo |
+| **Tailwind CSS v3** | Utilidades CSS inline, diseño responsivo trivial, sin ficheros CSS propios |
+| **TanStack Query** | Gestión automática de loading/error/caché para las llamadas al backend |
+| **React Router v6** | Navegación entre los 5 paneles sin recarga de página |
+| **Chart.js + react-chartjs-2** | Librería de gráficas compatible con los datos que devuelve el backend |
+| **React Leaflet** | Mapa interactivo para el Panel 1 (cartografiar) |
+
+Se decide adoptar una estrategia **UI-first**: construir toda la interfaz con datos mock primero y conectar el backend en una segunda fase. Esto permite iterar sobre el diseño sin depender de que el servidor esté corriendo.
+
+### Estructura de carpetas
+
+```
+frontend/src/
+├── api/          ← cliente fetch tipado (Fase 2)
+├── types/        ← interfaces TypeScript de cada respuesta del backend
+├── hooks/        ← hooks de TanStack Query (Fase 2)
+├── components/
+│   ├── ui/       ← componentes base reutilizables
+│   ├── charts/   ← componentes de gráficas (Fase 2)
+│   └── layout/   ← AppShell, Sidebar
+└── pages/
+    └── panels/   ← un fichero por panel
+```
+
+### Tipos API — src/types/api.ts
+
+Se definen las interfaces TypeScript que describen exactamente la forma de cada respuesta del backend: `CalibrationResult`, `SPDResult`, `StackSPDResult`, `PaleodemographyResult`, `Muestra`. Este fichero actúa como contrato entre backend y frontend: si cambia un campo del backend, TypeScript marca en rojo todos los sitios afectados.
+
+### HomePage
+
+Se construye la página principal con:
+- Cabecera con título y descripción del proyecto
+- Grid de 6 tarjetas (`PanelCard`) que navegan a cada panel: Cartografiar, Calibrar, SPD Yacimiento, SPD Isla, Paleodemografía y Guía de uso
+- Footer con logos de entidades colaboradoras (`Footer`)
+- Componentes base creados: `Card`, `PanelCard`, `Footer`
+- React Router configurado con una ruta por panel
+
+### Paleta de colores
+
+Se define una paleta centralizada en `tailwind.config.js` bajo el nombre `brand`, con tres opciones comentadas para facilitar el cambio futuro:
+- **Activa — Azul marino académico**: `brand-dark: #1e3a5f`, `brand-mid: #2e6da4`, `brand-light: #f8fafc`
+- Opción B guardada: Tierra volcánica (`#3d2b1f`)
+- Opción C guardada: Teal científico (`#0f4c5c`)
+
+---
+
+## 02/05/2026 — Guía de uso, layout y Panel 2 (Calibración)
+
+### Página de guía de uso
+
+Se construye la página `/guia` con toda la información de la pestaña "Sobre la app" de la app.R original, rediseñada en formato moderno:
+- Cabecera con título centrado, botón volver y fecha de última actualización en esquina inferior derecha
+- Sección de descripción general de la aplicación
+- Grid de 5 `PanelCard` que abren un `Modal` con las instrucciones detalladas de cada panel (en lugar de texto largo en pantalla)
+- Sección de cómo citar la publicación original
+- Bibliografía completa con estilo de lista académica
+- Contacto del autor original (Salvador Pardo-Gordó, ULL)
+
+Componente `Modal` creado como componente base reutilizable: recibe `isOpen`, `onClose`, `title`, `children` y `headerColor`. El fondo oscuro se cierra al hacer clic fuera del modal.
+
+### Layout — AppShell y Sidebar
+
+Se define la estructura de layout para los paneles de análisis:
+- `AppShell`: header ancho completo (logo + título del panel), sidebar colapsable a la izquierda, área de contenido flexible
+- `Sidebar`: navegación con `NavLink` de React Router, iconos siempre visibles, texto visible solo cuando está expandido, panel activo resaltado con `bg-brand-dark`
+- Botón hamburguesa (☰) en la parte superior del sidebar, alineado a la izquierda, para colapsar/expandir
+- El logo en el header navega a la HomePage al hacer clic
+
+### Panel 2 — Calibración individual
+
+Primer panel de análisis construido con el layout definitivo:
+
+Filtros en barra superior centrada:
+- `Select` — Id-Muestra
+- `Select` — Curva de calibración (intcal20, intcal13, marine20, marine13)
+- `Input` numérico — DeltaR (corrección marina, default 0)
+- `Input` numérico — Error DeltaR (default 0)
+- `Select` — Normalizar probabilidad (Sí/No)
+- Botón `Calcular`
+
+Área de resultados mock debajo, lista para recibir la gráfica de calibración.
+
+---
+
+## 03/05/2026 — Paneles 3, 4, 5 y Panel 1 (Cartografiar)
+
+### Panel 3 — SPD por yacimiento
+
+Filtros: selector de yacimiento, inicio cal BP (2500), fin cal BP (250), suavizado en años (50).
+Se elimina el selector de curva de calibración respecto al diseño inicial: la app.R original no lo expone en este panel y el backend usa `intcal20` por defecto.
+
+### Panel 4 — SPD por unidad geográfica
+
+Filtros: selector de isla, agrupación por categoría (Vida, Adscripcion, Contexto_Est, Material), inicio cal BP, fin cal BP.
+Área de resultados mock lista para el gráfico de SPD apilado.
+
+### Panel 5 — Paleodemografía
+
+Filtros: isla, modelo demográfico (exponential/uniform/linear), inicio/fin cal BP, simulaciones Monte Carlo (máx 100), suavizado, agrupación en años (binH), ratio de crecimiento (ROC/SPD).
+Dos áreas de resultados mock: SPD observado vs modelo teórico (gráfica superior) y Rate of Change (gráfica inferior), igual que la app.R original.
+
+### Panel 1 — Cartografiar (diseño diferente)
+
+Al ser un panel centrado en el mapa, se adopta un diseño de **controles flotantes** en lugar de barra de filtros fija:
+- El mapa ocupa el 100% del área de contenido (`absolute inset-0`)
+- Un único botón "🎚️ Filtros" flota sobre el mapa (esquina superior izquierda, `z-index` alto)
+- Al pulsarlo se despliega un panel compacto encima del mapa sin desplazarlo ni reducirlo
+- El panel contiene el slider de BP máximo y el selector de agrupación (cluster/puntos individuales)
+- Hacer clic sobre el mapa cierra el panel (`stopPropagation` evita cierres accidentales al interactuar con los controles)
+- `AppShell` acepta prop `mainClassName` para que el mapa pueda usar `overflow-hidden` en lugar del `overflow-auto` del resto de paneles
+
+### Componentes UI reutilizables creados
+
+| Componente | Descripción |
+|---|---|
+| `Card` | Contenedor con sombra, bordes redondeados y efecto hover opcional |
+| `PanelCard` | Tarjeta de navegación con icono, título y descripción |
+| `Modal` | Popup con fondo oscuro, cabecera de color, scroll interno y cierre al hacer clic fuera |
+| `Select` | Selector con `appearance-none` para eliminar estilos nativos del navegador, flecha personalizada |
+| `Slider` | Slider con track de color, thumb circular visible, etiqueta con valor actual y mín/máx |
+| `Footer` | Footer con logos de entidades colaboradoras y créditos |
+
+### Estado al cierre del día
+
+La **Fase 1 (UI con mock data) está completada**. Las 7 páginas de la aplicación están construidas y navegables. El siguiente paso es la Fase 2: conectar el backend creando `src/api/client.ts` y los hooks de TanStack Query, sustituyendo los datos mock por llamadas reales a Express en `:3001`.
