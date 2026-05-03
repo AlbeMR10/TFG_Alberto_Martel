@@ -4,7 +4,7 @@ import Panel1Map from './pages/panels/Cartografiar'
 import Panel2Calibration from './pages/panels/Calibrar'
 import Panel3SPDSite from './pages/panels/SPD_yacimineto'
 import Panel4SPDIsland from './pages/panels/SDP_isla'
-import Panel5Paleodemography from './pages/panels/SPD_yacimineto'
+import Panel5Paleodemography from './pages/panels/Paleodemografia'
 import GuidePage from './pages/panels/Guia'
 
 export default function App() {

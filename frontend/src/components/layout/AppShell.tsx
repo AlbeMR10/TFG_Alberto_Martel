@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
-import Sidebar from './SideBar'
+import Sidebar from './Sidebar'
 
 interface AppShellProps {
-  title:    string
-  children: React.ReactNode
+  title:          string
+  children:       React.ReactNode
+  mainClassName?: string
 }
 
-export default function AppShell({ title, children }: AppShellProps) {
+export default function AppShell({ title, children, mainClassName }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
@@ -28,7 +29,7 @@ export default function AppShell({ title, children }: AppShellProps) {
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
 
         {/* Área de contenido */}
-        <main className="flex-1 overflow-auto">
+        <main className={`flex-1 ${mainClassName ?? 'overflow-auto'}`}>
           {children}
         </main>
       </div>

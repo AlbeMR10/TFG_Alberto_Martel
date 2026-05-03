@@ -174,3 +174,4 @@ CLAUDE.md
 .claude/
 backend/test/*
 apuntes_mios.md
+frontend/dist/
