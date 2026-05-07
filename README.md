@@ -489,3 +489,27 @@ Al ser un panel centrado en el mapa, se adopta un diseño de **controles flotant
 ### Estado al cierre del día
 
 La **Fase 1 (UI con mock data) está completada**. Las 7 páginas de la aplicación están construidas y navegables. El siguiente paso es la Fase 2: conectar el backend creando `src/api/client.ts` y los hooks de TanStack Query, sustituyendo los datos mock por llamadas reales a Express en `:3001`.
+
+
+### 06-05-2026 — Panel 2 (Calibración) completado
+
+- Se conecta el frontend al backend: `src/api/client.ts`, hooks TanStack Query (`useCalibration`, `useMuestras`) y el patrón `enabled` para lanzar el fetch solo al pulsar "Calcular".
+- `CalibrationChart.tsx` reescrito para replicar exactamente `plot.CalDates()` de rcarbon:
+  - `hscale=0.3`: la distribución de probabilidad ocupa el 30 % inferior del rango C14 y se representa en el mismo eje que la curva IntCal20
+  - Plugin canvas (`gaussPlugin`) que dibuja el polígono relleno de la distribución gaussiana horizontal, porque Chart.js no soporta relleno horizontal nativo
+  - Eje derecho (`yProb`) como anotación: mismo rango de píxeles que `yC14`, con ticks calculados via `afterBuildTicks`
+  - `crosshairPlugin.ts` creado como factory reutilizable: `createCrosshairPlugin(getLines)` devuelve un plugin con línea discontinua y tooltip de canvas, compartible entre todas las gráficas
+- Desplegable de muestras muestra solo el `IdMuestra`, ordenado alfabéticamente
+
+### 07-05-2026 — Paneles 3 y 4 (SPD yacimiento y SPD isla) completados
+
+- **Panel 3 — SPD por yacimiento**:
+  - `SPDChart.tsx`: área roja semitransparente (SPD bruto, `fill: 'origin'`) + línea azul (media móvil). Crosshair muestra año, valor SPD y valor de la media móvil interpolados.
+  - `SPD_yacimiento.tsx` conectado a `useSPDSite` con el patrón `calcular`: la query solo se lanza al pulsar el botón; cambiar cualquier filtro reinicia el estado.
+  - Tabla de fechas del yacimiento debajo del gráfico (columnas: IdMuestra, Isla, BP, SD, Vida, Material, Especie, Adscripcion, Id_BibTeX), filtrada por `Higiene ∈ {1..7}`.
+- **Panel 4 — SPD por unidad geográfica**:
+  - `StackSPDChart.tsx` reescrito como multipanel: un `<Line>` de 160 px por categoría del grupo, escala Y global compartida (`yMax × 1.05`), PALETTE de 6 colores.
+  - Etiqueta "Summed Probability" en un `<div>` CSS rotado fuera de las gráficas, centrada verticalmente sobre el bloque entero (igual que el eje Y compartido de R).
+  - Nombre de cada categoría como `<p>` CSS por encima del panel correspondiente, separado visualmente del área de datos.
+  - Ordenación con `localeCompare` consciente del locale español para respetar acentos.
+  - `SDP_isla.tsx` conectado a `useIslas` + `useSPDIsland` con el mismo patrón `calcular`.
