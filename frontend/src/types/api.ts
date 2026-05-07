@@ -54,6 +54,11 @@ export interface Muestra {
   Material:    string
   Vida:        string
   Adscripcion: string
+  Contexto_Est:string
+  Higiene:     number
+  Especie:     string
+  Referencia:  string
+  Id_BibTeX:   string
   Lat:         number
   Lon:         number
 }
