@@ -10,11 +10,14 @@ import { useSPDIsland } from '../../hooks/useSPD'
 const GRUPOS = ['Vida', 'Adscripcion', 'Contexto_Est', 'Material']
 
 export default function Panel4SPDIsland() {
-  const [isla,     setIsla]     = useState('')
-  const [grupo,    setGrupo]    = useState('Vida')
-  const [trStart,  setTrStart]  = useState(2500)
-  const [trEnd,    setTrEnd]    = useState(250)
-  const [calcular, setCalcular] = useState(false)
+  const [isla,       setIsla]       = useState('')
+  const [grupo,      setGrupo]      = useState('Vida')
+  const [trStartStr, setTrStartStr] = useState('2500')
+  const [trEndStr,   setTrEndStr]   = useState('250')
+  const [calcular,   setCalcular]   = useState(false)
+
+  const trStart = parseInt(trStartStr) || 2500
+  const trEnd   = parseInt(trEndStr)   || 250
 
   const { data: islas, isLoading: loadingIslas } = useIslas()
 
@@ -51,16 +54,16 @@ export default function Panel4SPDIsland() {
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Inicio cal BP</label>
-          <input type="number" value={trStart}
-            onChange={e => { setTrStart(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={trStartStr}
+            onChange={e => { setTrStartStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Fin cal BP</label>
-          <input type="number" value={trEnd}
-            onChange={e => { setTrEnd(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={trEndStr}
+            onChange={e => { setTrEndStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>

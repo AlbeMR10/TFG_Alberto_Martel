@@ -12,12 +12,15 @@ import { useCalibration } from '../../hooks/useCalibration'
 const CURVAS = ['intcal20', 'intcal13', 'marine20', 'marine13']
 
 export default function Panel2Calibration() {
-  const [muestra,     setMuestra]     = useState('')
-  const [curva,       setCurva]       = useState('intcal20')
-  const [deltaR,      setDeltaR]      = useState(0)
-  const [errorDeltaR, setErrorDeltaR] = useState(0)
-  const [normalizar,  setNormalizar]  = useState(false)
-  const [calcular,    setCalcular]    = useState(false)
+  const [muestra,       setMuestra]       = useState('')
+  const [curva,         setCurva]         = useState('intcal20')
+  const [deltaRStr,     setDeltaRStr]     = useState('0')
+  const [errorDeltaStr, setErrorDeltaStr] = useState('0')
+  const [normalizar,    setNormalizar]    = useState(false)
+  const [calcular,      setCalcular]      = useState(false)
+
+  const deltaR      = parseInt(deltaRStr)     || 0
+  const errorDeltaR = parseInt(errorDeltaStr) || 0
 
   const { data: muestras, isLoading: loadingMuestras } = useMuestras()
 
@@ -51,15 +54,15 @@ export default function Panel2Calibration() {
         />
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">DeltaR</label>
-          <input type="number" value={deltaR}
-            onChange={e => { setDeltaR(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={deltaRStr}
+            onChange={e => { setDeltaRStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Error DeltaR</label>
-          <input type="number" value={errorDeltaR}
-            onChange={e => { setErrorDeltaR(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={errorDeltaStr}
+            onChange={e => { setErrorDeltaStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>

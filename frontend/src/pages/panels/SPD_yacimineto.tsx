@@ -13,11 +13,15 @@ const COLS: (keyof Muestra)[] = [
 ]
 
 export default function Panel3SPDSite() {
-  const [yacimiento, setYacimiento] = useState('')
-  const [trStart,    setTrStart]    = useState(2500)
-  const [trEnd,      setTrEnd]      = useState(250)
-  const [runm,       setRunm]       = useState(50)
-  const [calcular,   setCalcular]   = useState(false)
+  const [yacimiento,  setYacimiento]  = useState('')
+  const [trStartStr,  setTrStartStr]  = useState('2500')
+  const [trEndStr,    setTrEndStr]    = useState('250')
+  const [runmStr,     setRunmStr]     = useState('50')
+  const [calcular,    setCalcular]    = useState(false)
+
+  const trStart = parseInt(trStartStr) || 2500
+  const trEnd   = parseInt(trEndStr)   || 250
+  const runm    = parseInt(runmStr)    || 50
 
   const { data: yacimientos, isLoading: loadingYac } = useYacimientos()
   const { data: muestras }                            = useMuestras()
@@ -51,24 +55,24 @@ export default function Panel3SPDSite() {
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Inicio cal BP</label>
-          <input type="number" value={trStart}
-            onChange={e => { setTrStart(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={trStartStr}
+            onChange={e => { setTrStartStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Fin cal BP</label>
-          <input type="number" value={trEnd}
-            onChange={e => { setTrEnd(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={trEndStr}
+            onChange={e => { setTrEndStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">Suavizado (años)</label>
-          <input type="number" value={runm}
-            onChange={e => { setRunm(Number(e.target.value)); setCalcular(false) }}
+          <input type="number" value={runmStr}
+            onChange={e => { setRunmStr(e.target.value); setCalcular(false) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-brand-dark"
           />
         </div>

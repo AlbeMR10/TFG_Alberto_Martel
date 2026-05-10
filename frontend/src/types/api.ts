@@ -28,20 +28,23 @@ export type StackSPDResult = Record<string, StackSPDGroup>
 // ── Panel 5 — Paleodemografía ─────────────────────────────────────────────────
 export interface PaleodemographyResult {
   bcad:        number[]
-  spdObs:      number[]   // SPD observado
-  envelopeHi:  number[]   // percentil 97.5 simulaciones
-  envelopeLo:  number[]   // percentil 2.5 simulaciones
-  fitModel:    number[]   // modelo teórico ajustado
-  positiveDev: boolean[]  // exceso significativo
-  negativeDev: boolean[]  // déficit significativo
-  rocObs:      number[]   // Rate of Change observado
+  spdObs:      number[]
+  envelopeHi:  number[]
+  envelopeLo:  number[]
+  fitModel:    number[]
+  positiveDev: number[]
+  negativeDev: number[]
+  rocObs:      number[]
   rocHi:       number[]
   rocLo:       number[]
-  rocPosDev:   boolean[]
-  rocNegDev:   boolean[]
+  rocPosDev:   number[]
+  rocNegDev:   number[]
   nDates:      number
   nBins:       number
   pVal:        number
+  spdPlot:       string   // PNG base64: plot(testeo) — SPD vs modelo teórico
+  rocPlot:       string   // PNG base64: plot(testeo, type='roc') — Rate of Change
+  spdGrowthPlot: string   // PNG base64: plot(testeo, type='spd') — SPD growth rates
 }
 
 // ── Muestras ──────────────────────────────────────────────────────────────────

@@ -45,8 +45,9 @@ export interface PaleodemographyResult {
   pVal:        number
 
   // Imágenes generadas por R (base64 PNG)
-  spdPlot:     string
-  rocPlot:     string
+  spdPlot:       string   // plot(testeo)          — SPD vs modelo teórico
+  rocPlot:       string   // plot(testeo, type="roc") — Rate of Change
+  spdGrowthPlot: string   // plot(testeo, type="spd") — SPD growth rates
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -67,12 +68,13 @@ async function computeViaRscript(
   bps: number[], sds: number[], sites: string[],
   trMax: number, trMin: number,
   calCurve: string, nsimCap: number, runm: number, binH: number, model: string,
-): Promise<{ spdPlot: string; rocPlot: string; pVal: number; nBins: number }> {
-  const id         = `${Date.now()}_${Math.random().toString(36).slice(2)}`
-  const tmpDir     = os.tmpdir()
-  const scriptPath = pathNode.join(tmpDir, `paleo_${id}.R`)
-  const spdPath    = pathNode.join(tmpDir, `paleo_spd_${id}.png`)
-  const rocPath    = pathNode.join(tmpDir, `paleo_roc_${id}.png`)
+): Promise<{ spdPlot: string; rocPlot: string; spdGrowthPlot: string; pVal: number; nBins: number }> {
+  const id            = `${Date.now()}_${Math.random().toString(36).slice(2)}`
+  const tmpDir        = os.tmpdir()
+  const scriptPath    = pathNode.join(tmpDir, `paleo_${id}.R`)
+  const spdPath       = pathNode.join(tmpDir, `paleo_spd_${id}.png`)
+  const rocPath       = pathNode.join(tmpDir, `paleo_roc_${id}.png`)
+  const spdGrowthPath = pathNode.join(tmpDir, `paleo_spdgrowth_${id}.png`)
 
   const script = `
 suppressPackageStartupMessages(library(rcarbon))
@@ -91,6 +93,10 @@ dev.off()
 png("${rocPath.replace(/\\/g, '/')}", width = 900, height = 450, res = 96)
 par(mai = rep(0.64, 4))
 plot(.testeo, type = "roc", main = "Testeo de los ratios de crecimiento locales")
+dev.off()
+png("${spdGrowthPath.replace(/\\/g, '/')}", width = 900, height = 450, res = 96)
+par(mai = rep(0.64, 4))
+plot(.testeo, type = "spd", main = "Testeo de los ratios de crecimiento locales")
 dev.off()
 cat(sprintf("PVAL=%g\\nNBINS=%d\\n",
             as.numeric(.testeo$pval)[1],
@@ -111,13 +117,15 @@ cat(sprintf("PVAL=%g\\nNBINS=%d\\n",
     const pVal  = parseFloat(stdout.match(/PVAL=([^\n\r]+)/)?.[1]  ?? 'NaN')
     const nBins = parseInt  (stdout.match(/NBINS=(\d+)/)?.[1] ?? '0', 10)
 
-    const [spdBuf, rocBuf] = await Promise.all([
+    const [spdBuf, rocBuf, spdGrowthBuf] = await Promise.all([
       fsNode.readFile(spdPath),
       fsNode.readFile(rocPath),
+      fsNode.readFile(spdGrowthPath),
     ])
     return {
-      spdPlot: spdBuf.toString('base64'),
-      rocPlot: rocBuf.toString('base64'),
+      spdPlot:       spdBuf.toString('base64'),
+      rocPlot:       rocBuf.toString('base64'),
+      spdGrowthPlot: spdGrowthBuf.toString('base64'),
       pVal, nBins,
     }
   } finally {
@@ -125,6 +133,7 @@ cat(sprintf("PVAL=%g\\nNBINS=%d\\n",
       fsNode.unlink(scriptPath).catch(() => {}),
       fsNode.unlink(spdPath).catch(() => {}),
       fsNode.unlink(rocPath).catch(() => {}),
+      fsNode.unlink(spdGrowthPath).catch(() => {}),
     ])
   }
 }
@@ -173,10 +182,11 @@ export async function computePaleodemography(params: PaleodemographyParams): Pro
     bcad: [], spdObs: [], envelopeHi: [], envelopeLo: [], fitModel: [],
     positiveDev: [], negativeDev: [],
     rocObs: [], rocHi: [], rocLo: [], rocPosDev: [], rocNegDev: [],
-    nDates:  bps.length,
-    nBins:   r.nBins,
-    pVal:    r.pVal,
-    spdPlot: r.spdPlot,
-    rocPlot: r.rocPlot,
+    nDates:        bps.length,
+    nBins:         r.nBins,
+    pVal:          r.pVal,
+    spdPlot:       r.spdPlot,
+    rocPlot:       r.rocPlot,
+    spdGrowthPlot: r.spdGrowthPlot,
   }
 }
