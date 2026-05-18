@@ -46,12 +46,19 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-brand-dark border-b border-gray-200 px-8 py-10 text-center">
-        <h1 className="text-3xl font-bold text-white">Holoceno 14C Canarias</h1>
-        <p className="mt-2 text-white max-w-xl mx-auto">
-          Plataforma de análisis de dataciones radiocarbónicas del proyecto
-          14C Canarias de la Universidad de La Laguna.
-        </p>
+      <header className="bg-brand-dark border-b border-gray-200 px-8 py-8 flex items-center justify-center gap-8">
+        <img
+          src="/logos/Logo_BdD.png"
+          alt="14C Canarias"
+          className="h-28 w-auto object-contain flex-shrink-0"
+        />
+        <div>
+          <h1 className="text-3xl font-bold text-white">Holoceno 14C Canarias</h1>
+          <p className="mt-2 text-white max-w-xl">
+            Plataforma de análisis de dataciones radiocarbónicas del proyecto
+            14C Canarias de la Universidad de La Laguna.
+          </p>
+        </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-8 py-12">

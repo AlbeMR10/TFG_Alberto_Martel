@@ -15,12 +15,16 @@ export default function AppShell({ title, children, mainClassName }: AppShellPro
 
       {/* Header ancho completo */}
       <header className="bg-brand-dark text-white px-6 py-4 flex items-center shrink-0">
-        <img
+        <button
+          onClick={() => window.location.href = '/'}
+          className="bg-brand-dark rounded-xl px-3 py-1.5 hover:bg-brand-mid hover:scale-105 transition-all duration-200 flex items-center flex-shrink-0"
+        >
+          <img
             src="/logos/Logo_BdD.png"
             alt="14C Canarias"
-            className="h-8 w-auto object-contain cursor-pointer"
-            onClick={() => window.location.href = '/'}
-        />
+            className="h-14 w-auto object-contain"
+          />
+        </button>
         <h1 className="text-lg font-semibold tracking-wide flex-1 text-center">{title}</h1>
     </header>
 

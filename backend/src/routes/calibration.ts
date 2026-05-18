@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express'
-import * as fs   from 'fs'
-import * as path from 'path'
 import { calibrate, CalibrationParams } from '../services/calibration'
+import { pool } from '../db'
 
 // Motor de cálculo por defecto: se puede sobreescribir con ?engine=python
 // o cambiar globalmente con la variable de entorno CALC_ENGINE.
@@ -9,53 +8,6 @@ const DEFAULT_ENGINE = (process.env.CALC_ENGINE ?? 'webr') as 'webr' | 'python'
 
 // URL del servidor FastAPI Python (arranca aparte con uvicorn)
 const PYTHON_API_URL = process.env.PYTHON_API_URL ?? 'http://localhost:8000'
-
-// ── Carga del CSV ─────────────────────────────────────────────────────────────
-// TEMPORAL: mientras no hay base de datos MySQL, leemos directamente el CSV.
-// Cuando se monte MySQL, sustituir esta sección por:
-//   import { getDb } from '../db/connection'
-//   const [rows] = await getDb().query('SELECT BP, SD FROM muestras WHERE IdMuestra = ?', [idMuestra])
-//
-// Cargamos el CSV una sola vez al arrancar el módulo (no en cada petición).
-// Así no leemos el disco 100 veces si llegan 100 peticiones seguidas.
-//
-// El CSV usa separador ; y tiene cabecera en la primera fila.
-// Columnas que usamos: IdMuestra, BP, SD
-
-interface MuestraRow {
-  IdMuestra: string
-  BP:        number
-  SD:        number
-}
-
-function loadCsv(): Map<string, MuestraRow> {
-  const csvPath = path.resolve(__dirname, '../../../database/Canarias.csv')
-  const text    = fs.readFileSync(csvPath, 'utf-8')
-  const lines   = text.trim().split('\n')
-
-  // Primera línea = cabecera
-  const headers = lines[0].split(';').map(h => h.trim())
-  const iId = headers.indexOf('IdMuestra')
-  const iBP = headers.indexOf('BP')
-  const iSD = headers.indexOf('SD')
-
-  const map = new Map<string, MuestraRow>()
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(';')
-    const id   = cols[iId]?.trim()
-    const bp   = Number(cols[iBP])
-    const sd   = Number(cols[iSD])
-    if (id && !isNaN(bp) && !isNaN(sd)) {
-      map.set(id, { IdMuestra: id, BP: bp, SD: sd })
-    }
-  }
-
-  return map
-}
-
-// Se ejecuta una vez cuando Node.js carga este módulo
-const muestrasMap = loadCsv()
 
 // ── Router ────────────────────────────────────────────────────────────────────
 // Se monta en app.use('/api', calibrationRouter) dentro de index.ts,
@@ -95,14 +47,17 @@ router.get('/:idMuestra', async (req: Request, res: Response) => {
   const engine = (req.query.engine as string) ?? DEFAULT_ENGINE
 
   try {
-    // ── 2. Buscar la muestra en el CSV ────────────────────────────────────────
-    // TEMPORAL — reemplazar por query MySQL cuando esté disponible
-    const muestra = muestrasMap.get(idMuestra)
+    // ── 2. Buscar la muestra en la base de datos ──────────────────────────────
+    const [rows] = await pool.query(
+      'SELECT bp AS BP, sd AS SD FROM muestras WHERE id_muestra_lab = ?',
+      [idMuestra]
+    ) as [{ BP: number; SD: number }[], unknown]
 
-    if (!muestra) {
+    if (rows.length === 0) {
       res.status(404).json({ error: `Muestra '${idMuestra}' no encontrada` })
       return
     }
+    const muestra = rows[0]
 
     // ── 3. Llamar al motor de calibración ─────────────────────────────────────
 

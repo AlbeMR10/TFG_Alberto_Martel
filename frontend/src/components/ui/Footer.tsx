@@ -1,7 +1,6 @@
 const entidades = [
     { imagen: '/logos/eii_ulpgc.png',  nombre: 'Escuela de Ingeniería e Informática — ULPGC'},
     { imagen: '/logos/geografia.png',  nombre: 'Dpto. de Geografía — ULL'  },
-    { imagen: '/logos/Logo_BdD.png',   nombre: 'Base de Datos 14C-Canarias'         },
     { imagen: '/logos/Financiar.png',  nombre: 'Gobierno de España' },
 ]
 

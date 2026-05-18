@@ -98,10 +98,6 @@ export default function GuidePage() {
         {/* Título centrado */}
         <h1 className="text-2xl font-bold text-white text-center">Guía de uso</h1>
 
-        {/* Última actualización — esquina inferior derecha */}
-        <p className="absolute bottom-6 right-8 text-sm text-white">
-          Última actualización: 02-05-2026
-        </p>
       </header>
 
       <main className="max-w-4xl mx-auto px-8 py-10 space-y-12">
