@@ -8,7 +8,7 @@ interface AppShellProps {
 }
 
 export default function AppShell({ title, children, mainClassName }: AppShellProps) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768)
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

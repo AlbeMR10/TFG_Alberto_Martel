@@ -491,7 +491,7 @@ Al ser un panel centrado en el mapa, se adopta un diseño de **controles flotant
 La **Fase 1 (UI con mock data) está completada**. Las 7 páginas de la aplicación están construidas y navegables. El siguiente paso es la Fase 2: conectar el backend creando `src/api/client.ts` y los hooks de TanStack Query, sustituyendo los datos mock por llamadas reales a Express en `:3001`.
 
 
-### 06-05-2026 — Panel 2 (Calibración) completado
+### 06/05/2026 — Panel 2 (Calibración) completado
 
 - Se conecta el frontend al backend: `src/api/client.ts`, hooks TanStack Query (`useCalibration`, `useMuestras`) y el patrón `enabled` para lanzar el fetch solo al pulsar "Calcular".
 - `CalibrationChart.tsx` reescrito para replicar exactamente `plot.CalDates()` de rcarbon:
@@ -501,7 +501,7 @@ La **Fase 1 (UI con mock data) está completada**. Las 7 páginas de la aplicaci
   - `crosshairPlugin.ts` creado como factory reutilizable: `createCrosshairPlugin(getLines)` devuelve un plugin con línea discontinua y tooltip de canvas, compartible entre todas las gráficas
 - Desplegable de muestras muestra solo el `IdMuestra`, ordenado alfabéticamente
 
-### 07-05-2026 — Paneles 3 y 4 (SPD yacimiento y SPD isla) completados
+### 07/05/2026 — Paneles 3 y 4 (SPD yacimiento y SPD isla) completados
 
 - **Panel 3 — SPD por yacimiento**:
   - `SPDChart.tsx`: área roja semitransparente (SPD bruto, `fill: 'origin'`) + línea azul (media móvil). Crosshair muestra año, valor SPD y valor de la media móvil interpolados.
@@ -512,4 +512,51 @@ La **Fase 1 (UI con mock data) está completada**. Las 7 páginas de la aplicaci
   - Etiqueta "Summed Probability" en un `<div>` CSS rotado fuera de las gráficas, centrada verticalmente sobre el bloque entero (igual que el eje Y compartido de R).
   - Nombre de cada categoría como `<p>` CSS por encima del panel correspondiente, separado visualmente del área de datos.
   - Ordenación con `localeCompare` consciente del locale español para respetar acentos.
-  - `SDP_isla.tsx` conectado a `useIslas` + `useSPDIsland` con el mismo patrón `calcular`.
+  - `SPD_isla.tsx` conectado a `useIslas` + `useSPDIsland` con el mismo patrón `calcular`.
+
+---
+
+## 08/05/2026 — Panel 5 (Paleodemografía) y Panel 1 (Cartografiar) completados
+
+### Panel 5 — Paleodemografía conectado al backend
+
+- Enfoque PNG base64: R genera las tres gráficas directamente con `plot.SpdModelTest()` (spdPlot, rocPlot, spdGrowthPlot) y las manda como base64. El frontend las muestra con `<img>`. No se transfieren vectores de datos.
+- Selector "Analizar ratio crecimiento" (ROC/SPD) controla qué segunda imagen se muestra sin lanzar una nueva petición al backend: solo cambia el `src` del `<img>` entre `data.rocPlot` y `data.spdGrowthPlot`.
+- Patrón de estado en string para inputs numéricos: `useState('2500')` en lugar de `useState(2500)`, con `parseInt(str) || default` para derivar el valor numérico. Elimina el bug de "02" al borrar y reescribir un campo.
+- Número de simulaciones arranca en 2 (igual que app.R).
+
+### Panel 1 — Mapa (Cartografiar) con React Leaflet
+
+- `MapContainer` (CartoDB Positron como tile) + `MarkerClusterGroup` (`react-leaflet-cluster`) + `CircleMarker` con `Tooltip`.
+- Escala de color: ColorBrewer "Greens" 9 clases, igual que `colorBin("Greens", BP, 9)` en R. Función `getBpColor(bp)` mapea el valor BP al índice del array GREENS.
+- Leyenda de colores visible en modo puntos individuales, oculta en modo cluster.
+- Controles flotantes sobre el mapa: botón "Filtros" que despliega panel compacto (slider BP + selector cluster). `left-14` para no solaparse con los botones de zoom nativos de Leaflet.
+- CSS de Leaflet y react-leaflet-cluster importados en `main.tsx`.
+
+### Migración CSV → MySQL
+
+- Se migra la base de datos del CSV a MySQL. Tablas: `muestras`, `yacimientos`, `bibliografias`.
+- Se crea `backend/src/db.ts` con el pool de conexión `mysql2`.
+- Todos los routes reescritos para usar queries SQL en lugar de leer el CSV al arrancar.
+- `backend/src/db/migrate-csv.js`: script de migración one-shot (ya ejecutado).
+
+---
+
+## 18/05/2026 — Pulido visual y cierre del desarrollo web
+
+### Correcciones y limpieza de código
+
+- Eliminado `import 'leaflet/dist/leaflet.css'` duplicado en `main.tsx`.
+- Archivos de paneles renombrados para eliminar typos: `SPD_yacimineto.tsx` → `SPD_yacimiento.tsx`, `SDP_isla.tsx` → `SPD_isla.tsx`. Imports en `App.tsx` actualizados.
+- Eliminada línea de "Última actualización" hardcodeada en `Guia.tsx`.
+
+### Logo de la aplicación
+
+- `Logo_BdD.png` eliminado del listado de entidades colaboradoras del footer (indicación del tutor).
+- Se genera una versión del logo con fondo transparente para usarlo sobre fondos oscuros.
+- En `HomePage.tsx`: logo posicionado a la izquierda del título en la cabecera, tamaño `h-28`.
+- En `AppShell.tsx`: logo estilizado como botón (`<button>` con `rounded-xl`, hover `bg-brand-mid` + `scale-105`), tamaño `h-14`. Navega a la HomePage al hacer clic.
+
+### Estado final
+
+**La versión web de la aplicación está completa.** Los 5 paneles están funcionales, conectados al backend Node.js + Rscript + MySQL y validados visualmente contra la app R original. El siguiente paso es la app móvil.
