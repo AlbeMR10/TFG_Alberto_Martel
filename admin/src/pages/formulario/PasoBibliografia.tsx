@@ -7,7 +7,7 @@ interface Props {
   onSiguiente: (input: BiblioInput) => void
 }
 
-export default function Paso1Biblio({ inputInicial, onSiguiente }: Props) {
+export default function PasoBibliografia({ inputInicial, onSiguiente }: Props) {
   const [bibliografias, setBibliografias] = useState<Bibliografia[]>([])
   const modoInicial = inputInicial?.tipo === 'nueva' ? 'nueva' : 'seleccionar'
   const [modo, setModo]         = useState<'seleccionar' | 'nueva'>(modoInicial)

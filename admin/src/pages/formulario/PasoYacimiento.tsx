@@ -8,7 +8,7 @@ interface Props {
   onSiguiente: (input: YacInput) => void
 }
 
-export default function Paso2Yacimiento({ inputInicial, onAnterior, onSiguiente }: Props) {
+export default function PasoYacimiento({ inputInicial, onAnterior, onSiguiente }: Props) {
   const [yacimientos, setYacimientos] = useState<Yacimiento[]>([])
   const modoInicial = inputInicial?.tipo === 'nuevo' ? 'nuevo' : 'seleccionar'
   const [modo, setModo]               = useState<'seleccionar' | 'nuevo'>(modoInicial)

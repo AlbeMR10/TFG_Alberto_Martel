@@ -77,7 +77,7 @@ function toForm(m: Partial<Muestra> | null): FormData {
   }
 }
 
-export default function Paso3Muestra({ inicial, onAnterior, onGuardar }: Props) {
+export default function PasoMuestra({ inicial, onAnterior, onGuardar }: Props) {
   const [form, setForm] = useState<FormData>(toForm(inicial))
   const [guardando, setGuardando] = useState(false)
   const [error, setError]         = useState<string | null>(null)

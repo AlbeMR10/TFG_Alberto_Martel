@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import MuestrasPage from './pages/MuestrasPage'
-import WizardPage   from './pages/WizardPage'
+import FormularioMuestraPage from './pages/FormularioMuestraPage'
 import type { Muestra } from './types'
 
-type Vista = 'tabla' | 'wizard'
+type Vista = 'tabla' | 'formulario'
 
 export default function App() {
   const [vista, setVista]               = useState<Vista>('tabla')
   const [muestraEditar, setMuestraEditar] = useState<Muestra | null>(null)
   const [mensajeExito, setMensajeExito] = useState<string | undefined>()
 
-  if (vista === 'wizard') {
+  if (vista === 'formulario') {
     return (
-      <WizardPage
+      <FormularioMuestraPage
         muestraEditar={muestraEditar}
         onVolver={msg => {
           setMensajeExito(msg)
@@ -26,8 +26,8 @@ export default function App() {
     <MuestrasPage
       mensajeInicial={mensajeExito}
       onMensajeVisto={() => setMensajeExito(undefined)}
-      onAnadir={() => { setMuestraEditar(null); setVista('wizard') }}
-      onEditar={m => { setMuestraEditar(m); setVista('wizard') }}
+      onAnadir={() => { setMuestraEditar(null); setVista('formulario') }}
+      onEditar={m => { setMuestraEditar(m); setVista('formulario') }}
     />
   )
 }

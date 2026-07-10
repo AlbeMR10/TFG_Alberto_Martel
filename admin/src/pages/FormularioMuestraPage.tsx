@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { api } from '../api'
 import type { Muestra, BiblioInput, YacInput } from '../types'
-import Paso1Biblio      from './wizard/Paso1Biblio'
-import Paso2Yacimiento  from './wizard/Paso2Yacimiento'
-import Paso3Muestra     from './wizard/Paso3Muestra'
+import PasoBibliografia from './formulario/PasoBibliografia'
+import PasoYacimiento   from './formulario/PasoYacimiento'
+import PasoMuestra      from './formulario/PasoMuestra'
 
 interface Props {
   muestraEditar: Muestra | null
@@ -12,7 +12,7 @@ interface Props {
 
 const PASOS = ['Bibliografía', 'Yacimiento', 'Muestra']
 
-export default function WizardPage({ muestraEditar, onVolver }: Props) {
+export default function FormularioMuestraPage({ muestraEditar, onVolver }: Props) {
   const [paso, setPaso]           = useState(0)
   const [biblio, setBiblio]       = useState<BiblioInput | null>(
     muestraEditar?.id_biblio ? { tipo: 'existente', id: muestraEditar.id_biblio } : null
@@ -67,20 +67,20 @@ export default function WizardPage({ muestraEditar, onVolver }: Props) {
       {/* Contenido del paso actual */}
       <div className="max-w-2xl mx-auto px-6 py-8">
         {paso === 0 && (
-          <Paso1Biblio
+          <PasoBibliografia
             inputInicial={biblio}
             onSiguiente={input => { setBiblio(input); setPaso(1) }}
           />
         )}
         {paso === 1 && (
-          <Paso2Yacimiento
+          <PasoYacimiento
             inputInicial={yac}
             onAnterior={() => setPaso(0)}
             onSiguiente={input => { setYac(input); setPaso(2) }}
           />
         )}
         {paso === 2 && (
-          <Paso3Muestra
+          <PasoMuestra
             inicial={muestraEditar}
             onAnterior={() => setPaso(1)}
             onGuardar={handleGuardar}
