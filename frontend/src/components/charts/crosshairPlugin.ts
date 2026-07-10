@@ -8,7 +8,7 @@ export function createCrosshairPlugin(
   return {
     id: 'crosshair',
 
-    afterEvent(chart, args) {
+    afterEvent(_chart, args) {
       const type = args.event.type
       if (type === 'mousemove') {
         cursorX      = args.event.x ?? null

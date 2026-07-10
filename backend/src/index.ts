@@ -4,6 +4,7 @@ import calibrationRouter from './routes/calibration'
 import muestrasRouter    from './routes/muestras'
 import spdRouter              from './routes/spd'
 import paleodemographyRouter  from './routes/paleodemography'
+import adminRouter            from './routes/admin'
 
 const PORT = process.env.PORT ?? 3001
 
@@ -21,8 +22,10 @@ async function main() {
   app.use((_req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     next()
   })
+  app.options('*', (_req, res) => res.sendStatus(204))
 
   // ── 3. Servir archivos estáticos ─────────────────────────────────────────
   // La página de prueba (test.html) se sirve desde backend/test/
@@ -33,6 +36,7 @@ async function main() {
   app.use('/api/muestras',  muestrasRouter)
   app.use('/api/spd',              spdRouter)
   app.use('/api/paleodemography',  paleodemographyRouter)
+  app.use('/api/admin',            adminRouter)
 
   // Ruta de comprobación — útil para saber si el servidor está vivo
   app.get('/api/health', (_req, res) => {
